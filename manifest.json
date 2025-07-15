@@ -1,0 +1,16 @@
+{
+    "manifest_version": 3,
+    "name": "TimeTrak Pro",
+    "version": "1.0",
+    "description": "Professional work time and earnings tracker for freelancers and remote workers",
+    "permissions": ["storage"],
+    "action": {
+        "default_popup": "index.html",
+        "default_title": "TimeTrak Pro - Time & Earnings Tracker"
+    },
+    "icons": {
+        "16": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>",
+        "48": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>",
+        "128": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>"
+    }
+}

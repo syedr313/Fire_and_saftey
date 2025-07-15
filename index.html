@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeTrak Pro</title>
+    
+    <!-- 
+    ========================================
+    CHROME EXTENSION SETUP INSTRUCTIONS
+    ========================================
+    
+    1. Save this file as "index.html" in a folder (e.g., "timetrak-pro")
+    2. Create a manifest.json file in the same folder with the content shown below
+    3. Open Chrome and go to chrome://extensions/
+    4. Enable "Developer mode" (toggle in top right)
+    5. Click "Load unpacked" and select your folder
+    6. Pin the extension to your toolbar for easy access
+    
+    MANIFEST.JSON CONTENT:
+    {
+        "manifest_version": 3,
+        "name": "TimeTrak Pro",
+        "version": "1.0",
+        "description": "Professional work time and earnings tracker",
+        "permissions": ["storage"],
+        "action": {
+            "default_popup": "index.html",
+            "default_title": "TimeTrak Pro"
+        },
+        "icons": {
+            "16": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>",
+            "48": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>",
+            "128": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><circle cx='12' cy='12' r='10'/><path d='M12 6v6l4 2' stroke='white' stroke-width='2' fill='none'/></svg>"
+        }
+    }
+    -->
+    
+    <style>
+        /* ========================================
+           GLOBAL STYLES & RESET
+           ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 380px;
+            min-height: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ========================================
+           WATERMARK BRANDING
+           ======================================== */
+        .watermark {
+            position: fixed;
+            top: 10px;
+            right: 15px;
+            font-size: 11px;
+            opacity: 0.3;
+            color: white;
+            z-index: 1000;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .attribution {
+            position: fixed;
+            bottom: 8px;
+            left: 15px;
+            font-family: 'Fira Mono', monospace, 'Courier New', monospace;
+            font-size: 10px;
+            opacity: 0.4;
+            color: white;
+            z-index: 1000;
+        }
+
+        /* ========================================
+           MAIN CONTAINER
+           ======================================== */
+        .container {
+            background: white;
+            margin: 20px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ========================================
+           HEADER SECTION
+           ======================================== */
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .user-greeting {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .earnings-display {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .current-session {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        /* ========================================
+           WELCOME SCREEN
+           ======================================== */
+        .welcome-screen {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .welcome-screen h2 {
+            color: #4F46E5;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .welcome-question {
+            font-size: 16px;
+            margin-bottom: 30px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        /* ========================================
+           SETUP SCREEN
+           ======================================== */
+        .setup-screen {
+            display: none;
+            padding: 30px 20px;
+        }
+
+        .setup-screen h2 {
+            color: #4F46E5;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 22px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E5E7EB;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4F46E5;
+        }
+
+        /* ========================================
+           MAIN DASHBOARD
+           ======================================== */
+        .main-dashboard {
+            display: none;
+            padding: 20px;
+        }
+
+        .session-controls {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .timer-display {
+            font-size: 32px;
+            font-weight: 700;
+            color: #4F46E5;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .session-earnings {
+            font-size: 16px;
+            color: #059669;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* ========================================
+           BUTTONS
+           ======================================== */
+        .btn {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6B7280;
+            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 16px rgba(107, 114, 128, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-large {
+            font-size: 18px;
+            padding: 16px 32px;
+            border-radius: 12px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            font-size: 16px;
+            padding: 14px 28px;
+            margin: 10px;
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+            font-size: 16px;
+            padding: 14px 28px;
+            margin: 10px;
+        }
+
+        /* ========================================
+           OUTCOME MODAL
+           ======================================== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            width: 90%;
+        }
+
+        .modal h3 {
+            color: #374151;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .outcome-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* ========================================
+           STATISTICS SECTION
+           ======================================== */
+        .stats-section {
+            margin-bottom: 25px;
+        }
+
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stats-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .filter-btn {
+            background: #F3F4F6;
+            color: #6B7280;
+            border: 1px solid #D1D5DB;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            background: #E5E7EB;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            background: #F8FAFC;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #E2E8F0;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4F46E5;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ========================================
+           LOGS SECTION
+           ======================================== */
+        .logs-section {
+            margin-bottom: 20px;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .logs-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .add-manual-btn {
+            background: #10B981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .logs-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            background: #FAFAFA;
+        }
+
+        .log-item {
+            padding: 12px;
+            border-bottom: 1px solid #E5E7EB;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #6B7280;
+            font-size: 11px;
+        }
+
+        .log-duration {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .log-earnings {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .log-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-completed {
+            background: #D1FAE5;
+            color: #047857;
+        }
+
+        .status-disconnected {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .status-ignored {
+            background: #F3F4F6;
+            color: #6B7280;
+        }
+
+        /* ========================================
+           FILTER MODAL
+           ======================================== */
+        .filter-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 320px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .filter-content h3 {
+            margin-bottom: 20px;
+            color: #374151;
+            font-size: 18px;
+        }
+
+        .quick-filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-filter-btn {
+            background: #F3F4F6;
+            border: 1px solid #D1D5DB;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-filter-btn:hover,
+        .quick-filter-btn.active {
+            background: #4F46E5;
+            color: white;
+            border-color: #4F46E5;
+        }
+
+        .custom-range {
+            margin-bottom: 20px;
+        }
+
+        .custom-range h4 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .date-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .date-inputs input {
+            padding: 8px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* ========================================
+           MANUAL SESSION MODAL
+           ======================================== */
+        .manual-session-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .manual-session-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 320px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .manual-session-content h3 {
+            margin-bottom: 20px;
+            color: #374151;
+            font-size: 18px;
+        }
+
+        .duration-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .duration-input {
+            text-align: center;
+        }
+
+        .duration-input label {
+            display: block;
+            font-size: 11px;
+            color: #6B7280;
+            margin-bottom: 5px;
+        }
+
+        .duration-input input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN
+           ======================================== */
+        @media (max-width: 400px) {
+            body {
+                width: 100%;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ========================================
+           ANIMATIONS
+           ======================================== */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .recording {
+            animation: pulse 2s infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ========================================
+           SCROLLBAR STYLING
+           ======================================== */
+        .logs-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Watermark Branding -->
+    <div class="watermark">TimeTrak Pro</div>
+    <div class="attribution">// Created by Syed</div>
+
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="welcome-screen">
+            <h2>Welcome to TimeTrak Pro</h2>
+            <p class="welcome-question">You are about to start the extension.<br>Would you like to enable tracking?</p>
+            <div class="btn-group">
+                <button class="btn btn-success btn-large" onclick="handleWelcomeYes()">Yes</button>
+                <button class="btn btn-secondary btn-large" onclick="handleWelcomeNo()">No</button>
+            </div>
+        </div>
+
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="setup-screen">
+            <h2>Let's Get Started</h2>
+            <div class="form-group">
+                <label for="userName">Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name">
+            </div>
+            <div class="form-group">
+                <label for="hourlyRate">Hourly Rate ($)</label>
+                <input type="number" id="hourlyRate" placeholder="10.00" step="0.01" min="0">
+            </div>
+            <button class="btn btn-large" onclick="completeSetup()" style="width: 100%; margin-top: 10px;">Start Tracking</button>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="mainDashboard" class="main-dashboard">
+            <!-- Header -->
+            <div class="header">
+                <div class="user-greeting" id="userGreeting">Hello, User!</div>
+                <div class="earnings-display">
+                    Total Earnings: <span id="totalEarnings">$0.00</span>
+                </div>
+                <div class="current-session" id="currentSession" style="display: none;">
+                    <div class="timer-display" id="timerDisplay">00:00:00</div>
+                    <div class="session-earnings" id="sessionEarnings">Session: $0.00</div>
+                </div>
+            </div>
+
+            <!-- Session Controls -->
+            <div class="session-controls">
+                <div id="idleState">
+                    <div style="margin-bottom: 15px; color: #6B7280;">Ready to start tracking</div>
+                    <button class="btn start-btn" onclick="startSession()">Start Session</button>
+                </div>
+                <div id="activeState" style="display: none;">
+                    <div class="timer-display" id="mainTimer">00:00:00</div>
+                    <div class="session-earnings" id="mainSessionEarnings">Session: $0.00</div>
+                    <button class="btn stop-btn" onclick="stopSession()">Stop Session</button>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="stats-section">
+                <div class="stats-header">
+                    <span class="stats-title">Statistics</span>
+                    <button class="filter-btn" onclick="openFilterModal()">Filter</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="statCalls">0</span>
+                        <span class="stat-label">Calls</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="statHours">0h</span>
+                        <span class="stat-label">Hours</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="statEarnings">$0</span>
+                        <span class="stat-label">Earnings</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="statPeriod">Today</span>
+                        <span class="stat-label">Period</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Logs Section -->
+            <div class="logs-section">
+                <div class="logs-header">
+                    <span class="logs-title">Recent Calls</span>
+                    <button class="add-manual-btn" onclick="openManualSessionModal()">+ Add</button>
+                </div>
+                <div class="logs-container" id="logsContainer">
+                    <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 14px;">
+                        No calls yet. Start your first session!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Outcome Modal -->
+    <div id="outcomeModal" class="modal">
+        <div class="modal-content">
+            <h3>How did your call go?</h3>
+            <div class="outcome-buttons">
+                <button class="btn btn-success" onclick="handleOutcome('completed')">✅ Completed</button>
+                <button class="btn btn-danger" onclick="handleOutcome('disconnected')">❌ Disconnected</button>
+                <button class="btn btn-secondary" onclick="handleOutcome('ignored')">🚫 Ignore</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filterModal" class="filter-modal">
+        <div class="filter-content">
+            <h3>Filter Call Logs</h3>
+            <div class="quick-filters">
+                <button class="quick-filter-btn" onclick="applyQuickFilter(7)">Last 7 days</button>
+                <button class="quick-filter-btn" onclick="applyQuickFilter(10)">Last 10 days</button>
+                <button class="quick-filter-btn" onclick="applyQuickFilter(15)">Last 15 days</button>
+                <button class="quick-filter-btn" onclick="applyQuickFilter(30)">Last 30 days</button>
+            </div>
+            <div class="custom-range">
+                <h4>Custom Date Range</h4>
+                <div class="date-inputs">
+                    <input type="date" id="startDate" placeholder="Start Date">
+                    <input type="date" id="endDate" placeholder="End Date">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="closeFilterModal()">Cancel</button>
+                <button class="btn" onclick="applyCustomFilter()">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Session Modal -->
+    <div id="manualSessionModal" class="manual-session-modal">
+        <div class="manual-session-content">
+            <h3>Add Manual Session</h3>
+            <div class="form-group">
+                <label for="sessionDate">Date</label>
+                <input type="date" id="sessionDate">
+            </div>
+            <div class="form-group">
+                <label>Duration</label>
+                <div class="duration-inputs">
+                    <div class="duration-input">
+                        <label>Hours</label>
+                        <input type="number" id="manualHours" min="0" max="23" value="0">
+                    </div>
+                    <div class="duration-input">
+                        <label>Minutes</label>
+                        <input type="number" id="manualMinutes" min="0" max="59" value="0">
+                    </div>
+                    <div class="duration-input">
+                        <label>Seconds</label>
+                        <input type="number" id="manualSeconds" min="0" max="59" value="0">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="manualStatus">Status</label>
+                <select id="manualStatus" style="width: 100%; padding: 8px; border: 1px solid #D1D5DB; border-radius: 6px;">
+                    <option value="completed">Completed</option>
+                    <option value="disconnected">Disconnected</option>
+                    <option value="ignored">Ignored</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button class="btn btn-secondary" onclick="closeManualSessionModal()">Cancel</button>
+                <button class="btn" onclick="addManualSession()">Add Session</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // GLOBAL VARIABLES & STATE MANAGEMENT
+        // ========================================
+        
+        let appState = {
+            isSetup: false,
+            userName: '',
+            hourlyRate: 0,
+            isTracking: false,
+            sessionStartTime: null,
+            sessionTimer: null,
+            currentFilter: { type: 'days', value: 1 }, // Default to last 24 hours
+            sessions: []
+        };
+
+        // ========================================
+        // INITIALIZATION & SETUP
+        // ========================================
+        
+        // Initialize the extension when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('TimeTrak Pro: Initializing extension...');
+            loadAppState();
+            initializeUI();
+        });
+
+        // Load saved data from Chrome storage
+        function loadAppState() {
+            try {
+                // Load from localStorage (fallback for development)
+                const savedState = localStorage.getItem('timetrackPro');
+                if (savedState) {
+                    const parsed = JSON.parse(savedState);
+                    appState = { ...appState, ...parsed };
+                }
+                
+                // Also try Chrome storage API if available
+                if (chrome && chrome.storage) {
+                    chrome.storage.local.get(['timetrackPro'], function(result) {
+                        if (result.timetrackPro) {
+                            appState = { ...appState, ...result.timetrackPro };
+                            initializeUI();
+                        }
+                    });
+                }
+            } catch (error) {
+                console.log('TimeTrak Pro: First time setup detected');
+            }
+        }
+
+        // Save app state to storage
+        function saveAppState() {
+            const stateToSave = {
+                isSetup: appState.isSetup,
+                userName: appState.userName,
+                hourlyRate: appState.hourlyRate,
+                sessions: appState.sessions,
+                currentFilter: appState.currentFilter
+            };
+            
+            // Save to localStorage
+            localStorage.setItem('timetrackPro', JSON.stringify(stateToSave));
+            
+            // Save to Chrome storage if available
+            if (chrome && chrome.storage) {
+                chrome.storage.local.set({ timetrackPro: stateToSave });
+            }
+        }
+
+        // Initialize UI based on current state
+        function initializeUI() {
+            console.log('TimeTrak Pro: Setting up UI...', appState);
+            
+            if (!appState.isSetup) {
+                showWelcomeScreen();
+            } else {
+                showDashboard();
+                updateUserGreeting();
+                updateStats();
+                updateCallLogs();
+                
+                // If there was an active session, restore it
+                if (appState.isTracking && appState.sessionStartTime) {
+                    restoreActiveSession();
+                }
+            }
+        }
+
+        // ========================================
+        // SCREEN NAVIGATION
+        // ========================================
+        
+        function showWelcomeScreen() {
+            hideAllScreens();
+            document.getElementById('welcomeScreen').style.display = 'block';
+        }
+
+        function showSetupScreen() {
+            hideAllScreens();
+            document.getElementById('setupScreen').style.display = 'block';
+            // Set default date for manual session to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('sessionDate').value = today;
+        }
+
+        function showDashboard() {
+            hideAllScreens();
+            document.getElementById('mainDashboard').style.display = 'block';
+        }
+
+        function hideAllScreens() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'none';
+        }
+
+        // ========================================
+        // WELCOME SCREEN HANDLERS
+        // ========================================
+        
+        function handleWelcomeYes() {
+            if (appState.isSetup) {
+                // User already set up, start session immediately
+                showDashboard();
+                updateUserGreeting();
+                updateStats();
+                updateCallLogs();
+                startSession();
+            } else {
+                // First time user, show setup
+                showSetupScreen();
+            }
+        }
+
+        function handleWelcomeNo() {
+            if (appState.isSetup) {
+                // Just show dashboard without starting session
+                showDashboard();
+                updateUserGreeting();
+                updateStats();
+                updateCallLogs();
+            } else {
+                // First time user, still need setup
+                showSetupScreen();
+            }
+        }
+
+        // ========================================
+        // SETUP SCREEN HANDLERS
+        // ========================================
+        
+        function completeSetup() {
+            const userName = document.getElementById('userName').value.trim();
+            const hourlyRate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+            
+            if (!userName) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            if (hourlyRate <= 0) {
+                alert('Please enter a valid hourly rate');
+                return;
+            }
+            
+            // Save setup data
+            appState.isSetup = true;
+            appState.userName = userName;
+            appState.hourlyRate = hourlyRate;
+            saveAppState();
+            
+            // Show dashboard and start first session
+            showDashboard();
+            updateUserGreeting();
+            updateStats();
+            updateCallLogs();
+            startSession();
+        }
+
+        // ========================================
+        // SESSION MANAGEMENT
+        // ========================================
+        
+        function startSession() {
+            console.log('TimeTrak Pro: Starting new session...');
+            
+            appState.isTracking = true;
+            appState.sessionStartTime = new Date();
+            saveAppState();
+            
+            // Update UI
+            document.getElementById('idleState').style.display = 'none';
+            document.getElementById('activeState').style.display = 'block';
+            document.getElementById('currentSession').style.display = 'block';
+            
+            // Add recording animation to header
+            document.querySelector('.header').classList.add('recording');
+            
+            // Start timer
+            startTimer();
+        }
+
+        function stopSession() {
+            console.log('TimeTrak Pro: Stopping session...');
+            
+            if (!appState.isTracking) return;
+            
+            // Stop timer
+            if (appState.sessionTimer) {
+                clearInterval(appState.sessionTimer);
+                appState.sessionTimer = null;
+            }
+            
+            // Show outcome modal
+            document.getElementById('outcomeModal').style.display = 'flex';
+        }
+
+        function handleOutcome(outcome) {
+            console.log('TimeTrak Pro: Session outcome:', outcome);
+            
+            const endTime = new Date();
+            const duration = endTime - new Date(appState.sessionStartTime);
+            const hours = duration / (1000 * 60 * 60);
+            const earnings = outcome === 'completed' ? hours * appState.hourlyRate : 0;
+            
+            // Create session record
+            const session = {
+                id: Date.now(),
+                startTime: appState.sessionStartTime,
+                endTime: endTime,
+                duration: duration,
+                status: outcome,
+                earnings: earnings
+            };
+            
+            // Save session
+            appState.sessions.push(session);
+            appState.isTracking = false;
+            appState.sessionStartTime = null;
+            saveAppState();
+            
+            // Update UI
+            document.getElementById('outcomeModal').style.display = 'none';
+            document.getElementById('idleState').style.display = 'block';
+            document.getElementById('activeState').style.display = 'none';
+            document.getElementById('currentSession').style.display = 'none';
+            document.querySelector('.header').classList.remove('recording');
+            
+            // Refresh stats and logs
+            updateStats();
+            updateCallLogs();
+            updateUserGreeting();
+            
+            console.log('TimeTrak Pro: Session saved:', session);
+        }
+
+        function restoreActiveSession() {
+            console.log('TimeTrak Pro: Restoring active session...');
+            
+            // Update UI
+            document.getElementById('idleState').style.display = 'none';
+            document.getElementById('activeState').style.display = 'block';
+            document.getElementById('currentSession').style.display = 'block';
+            document.querySelector('.header').classList.add('recording');
+            
+            // Start timer
+            startTimer();
+        }
+
+        // ========================================
+        // TIMER FUNCTIONALITY
+        // ========================================
+        
+        function startTimer() {
+            updateTimer(); // Update immediately
+            appState.sessionTimer = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (!appState.isTracking || !appState.sessionStartTime) return;
+            
+            const now = new Date();
+            const elapsed = now - new Date(appState.sessionStartTime);
+            const hours = Math.floor(elapsed / (1000 * 60 * 60));
+            const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+            
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const earningsAmount = (elapsed / (1000 * 60 * 60)) * appState.hourlyRate;
+            
+            // Update timer displays
+            document.getElementById('timerDisplay').textContent = timeString;
+            document.getElementById('mainTimer').textContent = timeString;
+            
+            // Update earnings displays
+            document.getElementById('sessionEarnings').textContent = `Session: $${earningsAmount.toFixed(2)}`;
+            document.getElementById('mainSessionEarnings').textContent = `Session: $${earningsAmount.toFixed(2)}`;
+        }
+
+        // ========================================
+        // STATISTICS & ANALYTICS
+        // ========================================
+        
+        function updateUserGreeting() {
+            const totalEarnings = calculateTotalEarnings();
+            document.getElementById('userGreeting').textContent = `Hello, ${appState.userName}!`;
+            document.getElementById('totalEarnings').textContent = `$${totalEarnings.toFixed(2)}`;
+        }
+
+        function calculateTotalEarnings() {
+            return appState.sessions
+                .filter(session => session.status === 'completed')
+                .reduce((total, session) => total + session.earnings, 0);
+        }
+
+        function updateStats() {
+            const filteredSessions = getFilteredSessions();
+            const completedSessions = filteredSessions.filter(session => session.status === 'completed');
+            
+            const totalCalls = completedSessions.length;
+            const totalDuration = completedSessions.reduce((total, session) => total + session.duration, 0);
+            const totalHours = totalDuration / (1000 * 60 * 60);
+            const totalEarnings = completedSessions.reduce((total, session) => total + session.earnings, 0);
+            
+            document.getElementById('statCalls').textContent = totalCalls;
+            document.getElementById('statHours').textContent = `${totalHours.toFixed(1)}h`;
+            document.getElementById('statEarnings').textContent = `$${totalEarnings.toFixed(0)}`;
+            
+            // Update period label
+            let periodLabel = 'Today';
+            if (appState.currentFilter.type === 'days') {
+                periodLabel = appState.currentFilter.value === 1 ? 'Today' : `Last ${appState.currentFilter.value} days`;
+            } else if (appState.currentFilter.type === 'custom') {
+                periodLabel = 'Custom Range';
+            }
+            document.getElementById('statPeriod').textContent = periodLabel;
+        }
+
+        function getFilteredSessions() {
+            const now = new Date();
+            
+            if (appState.currentFilter.type === 'days') {
+                const daysAgo = new Date(now - appState.currentFilter.value * 24 * 60 * 60 * 1000);
+                return appState.sessions.filter(session => new Date(session.startTime) >= daysAgo);
+            } else if (appState.currentFilter.type === 'custom') {
+                const startDate = new Date(appState.currentFilter.startDate);
+                const endDate = new Date(appState.currentFilter.endDate);
+                endDate.setHours(23, 59, 59, 999); // Include entire end date
+                
+                return appState.sessions.filter(session => {
+                    const sessionDate = new Date(session.startTime);
+                    return sessionDate >= startDate && sessionDate <= endDate;
+                });
+            }
+            
+            return appState.sessions;
+        }
+
+        // ========================================
+        // CALL LOGS DISPLAY
+        // ========================================
+        
+        function updateCallLogs() {
+            const logsContainer = document.getElementById('logsContainer');
+            const filteredSessions = getFilteredSessions().slice(-20); // Show last 20 sessions
+            
+            if (filteredSessions.length === 0) {
+                logsContainer.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #6B7280; font-size: 14px;">
+                        No calls in selected period
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by start time (newest first)
+            filteredSessions.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+            
+            logsContainer.innerHTML = filteredSessions.map(session => {
+                const startTime = new Date(session.startTime);
+                const timeString = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateString = startTime.toLocaleDateString();
+                const duration = formatDuration(session.duration);
+                const earnings = session.status === 'completed' ? `$${session.earnings.toFixed(2)}` : '$0.00';
+                
+                return `
+                    <div class="log-item">
+                        <div>
+                            <div class="log-duration">${duration}</div>
+                            <div class="log-time">${timeString} • ${dateString}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="log-earnings">${earnings}</div>
+                            <div class="log-status status-${session.status}">${session.status}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDuration(milliseconds) {
+            const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+            const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        // ========================================
+        // FILTER FUNCTIONALITY
+        // ========================================
+        
+        function openFilterModal() {
+            document.getElementById('filterModal').style.display = 'flex';
+            
+            // Set current values
+            if (appState.currentFilter.type === 'custom') {
+                document.getElementById('startDate').value = appState.currentFilter.startDate;
+                document.getElementById('endDate').value = appState.currentFilter.endDate;
+            }
+            
+            // Highlight active quick filter
+            const quickFilterBtns = document.querySelectorAll('.quick-filter-btn');
+            quickFilterBtns.forEach(btn => btn.classList.remove('active'));
+            
+            if (appState.currentFilter.type === 'days') {
+                const activeBtn = Array.from(quickFilterBtns).find(btn => 
+                    btn.textContent.includes(appState.currentFilter.value.toString())
+                );
+                if (activeBtn) activeBtn.classList.add('active');
+            }
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filterModal').style.display = 'none';
+        }
+
+        function applyQuickFilter(days) {
+            appState.currentFilter = { type: 'days', value: days };
+            saveAppState();
+            updateStats();
+            updateCallLogs();
+            closeFilterModal();
+        }
+
+        function applyCustomFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date cannot be after end date');
+                return;
+            }
+            
+            appState.currentFilter = { 
+                type: 'custom', 
+                startDate: startDate, 
+                endDate: endDate 
+            };
+            saveAppState();
+            updateStats();
+            updateCallLogs();
+            closeFilterModal();
+        }
+
+        // ========================================
+        // MANUAL SESSION FUNCTIONALITY
+        // ========================================
+        
+        function openManualSessionModal() {
+            document.getElementById('manualSessionModal').style.display = 'flex';
+            
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('sessionDate').value = today;
+            
+            // Reset form
+            document.getElementById('manualHours').value = '0';
+            document.getElementById('manualMinutes').value = '0';
+            document.getElementById('manualSeconds').value = '0';
+            document.getElementById('manualStatus').value = 'completed';
+        }
+
+        function closeManualSessionModal() {
+            document.getElementById('manualSessionModal').style.display = 'none';
+        }
+
+        function addManualSession() {
+            const sessionDate = document.getElementById('sessionDate').value;
+            const hours = parseInt(document.getElementById('manualHours').value) || 0;
+            const minutes = parseInt(document.getElementById('manualMinutes').value) || 0;
+            const seconds = parseInt(document.getElementById('manualSeconds').value) || 0;
+            const status = document.getElementById('manualStatus').value;
+            
+            if (!sessionDate) {
+                alert('Please select a date');
+                return;
+            }
+            
+            const totalDuration = (hours * 60 * 60 + minutes * 60 + seconds) * 1000;
+            
+            if (totalDuration <= 0) {
+                alert('Please enter a valid duration');
+                return;
+            }
+            
+            // Create start and end times
+            const startTime = new Date(sessionDate + 'T12:00:00'); // Default to noon
+            const endTime = new Date(startTime.getTime() + totalDuration);
+            
+            const durationHours = totalDuration / (1000 * 60 * 60);
+            const earnings = status === 'completed' ? durationHours * appState.hourlyRate : 0;
+            
+            // Create session record
+            const session = {
+                id: Date.now(),
+                startTime: startTime,
+                endTime: endTime,
+                duration: totalDuration,
+                status: status,
+                earnings: earnings,
+                manual: true
+            };
+            
+            // Save session
+            appState.sessions.push(session);
+            saveAppState();
+            
+            // Update UI
+            updateStats();
+            updateCallLogs();
+            updateUserGreeting();
+            closeManualSessionModal();
+            
+            console.log('TimeTrak Pro: Manual session added:', session);
+        }
+
+        // ========================================
+        // UTILITY FUNCTIONS
+        // ========================================
+        
+        // Handle extension icon clicks when tracking is active
+        window.addEventListener('beforeunload', function() {
+            if (appState.isTracking) {
+                // Save current state
+                saveAppState();
+            }
+        });
+
+        // Handle extension popup close/open
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible' && appState.isTracking) {
+                // Restore timer when popup reopens
+                if (!appState.sessionTimer) {
+                    startTimer();
+                }
+            }
+        });
+
+        // Export functions for debugging (only in development)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.timetrackDebug = {
+                appState,
+                saveAppState,
+                loadAppState,
+                updateStats,
+                updateCallLogs
+            };
+        }
+
+        console.log('TimeTrak Pro: Extension loaded successfully');
+    </script>
+</body>
+</html>
